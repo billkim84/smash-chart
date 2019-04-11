@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Demo</title>
+  <script src="../dist/smash-chart.umd.js"></script>
+  <style>
+    .line {
+      fill: none;
+      stroke: #ffab00;
+      stroke-width: 1;
+    }
+
+    canvas {
+      background: #ff000024;
+    }
+
+    path {
+      shape-rendering: crispEdges;
+      fill: none;
+      stroke: #000;
+    }
+  </style>
+  <script src="https://code.createjs.com/1.0.0/createjs.min.js"></script>
+</head>
+
+<body onload="init()" style="display: flex; flex-direction: column; flex-wrap: wrap">
+  <div>
+    <button onclick="start()">start</button>
+    <button onclick="stop()">stop</button>
+    <button onclick="startAnimate()">back</button>
+    <button onclick="startAnimate()">forward</button>
+    <button onclick="zoomIn()">zoom in</button>
+    <button onclick="zoomOut()">zoon out</button>
+  </div>
+
+</body>
+<script>
+  var charts = [];
+  var numberOfCharts = 1;
+  var updateInterval;
+  var chart;
+  function init() {
+    const numLegends = 1;
+    const data = randomData(numLegends, 50);
+    const widget = {
+      autoAdjustWindowSize: false,
+      centerZeroLine: false,
+      splitLeftRight: false,
+      metaData: {},
+      legends: []
+    };
+
+    for (let i = 0; i < numLegends; i++) {
+      widget.legends.push({
+        id: i,
+        parameters: {
+          chartType: 'line',
+          isActive: true,
+          yAxisSide: 'left'
+        }
+      })
+    }
+
+
+    for (let i = 0; i < numberOfCharts; i++) {
+      var node = document.createElement("div");
+      node.setAttribute('id', 'chart' + i);
+      node.style.width = '400px';
+      node.style.height = '300px';
+      node.style.backgroundColor = '#e3e3e3'
+      node.style.position = 'relative';
+      document.body.appendChild(node);
+
+      chart = new smashChart.SmashChart("chart" + i, widget, null, data);
+      charts.push(chart);
+    }
+  }
+
+  function randomData(numberOfLayers, numberOfData) {
+    const data = [];
+    for (let i = 0; i < numberOfLayers; i++) {
+      const dataLayer = [];
+      for (let j = 0; j < numberOfData; j++) {
+        const value = Math.floor((Math.random() * 30) + 1);
+        dataLayer.push({ y: value, time: value });
+      }
+      data.push(dataLayer);
+    }
+    return data;
+  }
+
+  function start() {
+    updateInterval = setInterval(() => {
+      const value = Math.floor((Math.random() * 30) + 1);
+      chart.pushData([[{ y: value, time: value }]])
+    }, 800);
+  }
+
+  function stop() {
+    clearInterval(updateInterval);
+  }
+
+  function zoomIn() {
+    chart.zoomIn(1);
+  }
+
+  function zoomOut() {
+    chart.zoomOut(1);
+  }
+
+</script>
+
+
+</html>
