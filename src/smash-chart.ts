@@ -10,6 +10,10 @@ declare const createjs: any;
 
 export const TimeAxisHeight = 20;
 
+export enum ChartMode {
+  Realtime, Historic
+}
+
 export class SmashChart {
 
   svg: any;
@@ -21,8 +25,6 @@ export class SmashChart {
   dataCache!: DataCahce;
   container: any;
 
-  // ticks: number[];
-
   state: any = {
     viewSize: 10,
     margin: { top: 50, right: 50, bottom: 50, left: 50 },
@@ -33,7 +35,8 @@ export class SmashChart {
     },
     queue: [],
     queueSize: 1,
-    timeInterval: 3
+    timeInterval: 3,
+    mode: ChartMode.Realtime
   };
 
   // holds d3 axes
@@ -94,6 +97,10 @@ export class SmashChart {
   get innerWidth(): number {
     const { margin } = this.state;
     return this.container.clientWidth - margin.left - margin.right;
+  }
+
+  get mode(): ChartMode {
+    return this.state.mode;
   }
 
   /**
@@ -232,6 +239,11 @@ export class SmashChart {
   }
 
   handleTick() {
+
+    if (this.state.mode === ChartMode.Historic) {
+      return;
+    }
+
     if (this.state.animation.active) {
       this.state.animation.animationCount++;
 
@@ -261,7 +273,6 @@ export class SmashChart {
   }
 
   zoomIn(viewSize: number) {
-
     if (this.state.viewSize - viewSize > 10) {
       this.state.viewSize -= viewSize;
       this.dataCache.setViewStartIndex();
@@ -277,5 +288,24 @@ export class SmashChart {
     this.viewCache.init();
     this.updateAxes();
     this.draw();
+  }
+
+  moveBack(numMoves: number = 1) {
+    this.setHistoricMode();
+    this.dataCache.moveBack(numMoves);
+    this.updateAxes();
+    this.draw();
+  }
+
+  moveForward(numMoves: number = 1) {
+    this.setHistoricMode();
+    this.dataCache.moveForward(numMoves);
+    this.updateAxes();
+    this.draw();
+  }
+
+  private setHistoricMode() {
+    this.state.mode = ChartMode.Historic;
+    this.state.animation.active = false;
   }
 }

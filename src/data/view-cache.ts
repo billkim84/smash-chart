@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { SmashChart, TimeAxisHeight } from '../smash-chart';
+import { SmashChart, TimeAxisHeight, ChartMode } from '../smash-chart';
 
 export enum WidgetType {
   TimeSeries = 'TIME_SERIES',
@@ -72,9 +72,8 @@ export class ViewCache {
   }
 
   initTimeData() {
-    const layerLength = this.viewData[0].length;
     this.timeData = [];
-    for (let i = 0; i < layerLength; i++) {
+    for (let i = 0; i < this.viewData[0].length; i++) {
       this.tickCounter++;
 
       if (this.tickCounter === this.context.state.timeInterval) {
@@ -201,32 +200,33 @@ export class ViewCache {
     return legend.parameters.isActive;
   }
 
-  update(data: any[][]) {
+  update(data: any[][], isPrepend = false) {
 
-    this.tickCounter++;
-    if (this.tickCounter === this.context.state.timeInterval) {
-      this.timeData.push(data[0][0].time);
-      this.tickCounter = 0;
-    } else {
-      this.timeData.push(null);
-    }
+    this.updateTimeData(data, isPrepend);
 
     // find domains from the new data and update domains if needed
     const domainsFromNewData = this.findDomains(data);
     this.updateDomains(domainsFromNewData);
 
     if (this.needScaleUpdate) {
-      // console.log('new scale');
-      // console.log(this.domains);
       this.updateScales();
-      this.appendData(data);
+      // append or prepend data first and re-calculate the entire data
+      isPrepend ? this.prependData(data) : this.appendData(data);
       this.calcData(this.viewData);
       this.context.updateAxes();
       this.needScaleUpdate = false;
     } else {
       this.calcData(data);
-      this.appendData(data);
+      isPrepend ? this.prependData(data) : this.appendData(data);
     }
+  }
+
+  append(data: any[][]) {
+    this.update(data);
+  }
+
+  prepend(data: any[][]) {
+    this.update(data, true);
   }
 
   /**
@@ -243,12 +243,6 @@ export class ViewCache {
       }
     });
     this.timeData.shift();
-  }
-
-  appendData(data: any[][]) {
-    data.forEach((layeredData, layerIndex) => {
-      this.viewData[layerIndex] = this.viewData[layerIndex].concat(layeredData);
-    });
   }
 
   /**
@@ -279,7 +273,86 @@ export class ViewCache {
     }
   }
 
+  private updateTimeData(data: any[][], isPrepend = false) {
+    data[0].forEach(d => {
+      const emptyTimeWindowCount = this.countEmptyTimeValues(!isPrepend);
+      // there is a hidden extra data point at the end of chart.
+      const shouldAddNextTimeValue = emptyTimeWindowCount === this.context.state.timeInterval - 1;
+      const timeValue = shouldAddNextTimeValue ? d.time : null;
 
+      if (this.context.mode === ChartMode.Realtime) {
+        // for animation we cannot remove the first element here
+        // the first element will be removed after animation cycle done
+        this.timeData.push(timeValue);
+      } else {
+        if (isPrepend) {
+          this.timeData.pop();
+          this.timeData.unshift(timeValue);
+        } else {
+          this.timeData.shift();
+          this.timeData.push(timeValue)
+        }
+      }
+    });
+
+
+    // data[0].forEach(d => {
+    //   this.tickCounter++;
+    //   if (this.tickCounter === this.context.state.timeInterval) {
+    //     // append or prepend time
+    //     if (this.context.mode === ChartMode.Realtime) {
+    //       this.timeData.push(d.time);
+    //     } else {
+    //       isPrepend ? this.timeData.unshift(d.time) : this.timeData.push(d.time);
+    //       if (isPrepend) {
+    //         this.timeData.pop();
+    //         this.timeData.unshift(d.time);
+    //       } else {
+    //         this.timeData.shift();
+    //         this.timeData.push(d.time)
+    //       }
+    //     }
+    //     this.tickCounter = 0;
+    //   } else {
+    //     if (this.context.mode === ChartMode.Realtime) {
+    //       this.timeData.push(null);
+    //     } else {
+    //       if (isPrepend) {
+    //         this.timeData.pop();
+    //         this.timeData.unshift(null);
+    //       } else {
+    //         this.timeData.shift();
+    //         this.timeData.push(null)
+    //       }
+    //     }
+    //   }
+    // });
+  }
+
+  private countEmptyTimeValues(backward = false): number {
+    let count = 0;
+    for (let i = 0; i < this.timeData.length; i++) {
+      const k = backward ? this.timeData.length - 1 - i : i;
+      if (this.timeData[k] === null) {
+        count++;
+      } else {
+        return count;
+      }
+    }
+    return count;
+  }
+
+  private appendData(data: any[][]) {
+    data.forEach((layeredData, layerIndex) => {
+      this.viewData[layerIndex] = this.viewData[layerIndex].concat(layeredData);
+    });
+  }
+
+  private prependData(data: any[][]) {
+    data.forEach((layeredData, layerIndex) => {
+      this.viewData[layerIndex] = layeredData.concat(this.viewData[layerIndex]);
+    });
+  }
 
   /**
    * Divides charting area in half.
